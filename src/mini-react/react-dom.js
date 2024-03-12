@@ -1,16 +1,23 @@
 /**
  * 接收 element 和 container 两个参数，并将 element 渲染为真实 dom 挂载到 container 上。
- * @param {} element
- * @param {*} container
+ * @param {React.JSX.Element} element
+ * @param {HTMLElement} container
  */
 function render(element, container) {
   const dom = renderDom(element);
   container.appendChild(dom);
 }
 
+/**
+ * jsx语法创建React.Element的规则：
+ * type: 如'div','span',也可以是React组件名、React fragment等
+ * config：写在标签上的属性的集合，不为 null 时，说明标签上有属性，
+ * jsx元素标签上 除了key、ref、__source 和 __self之外的属性 都会在 props 中
+ * children： 从第三个参数开始后的参数为当前创建的React元素的子节点。也在props中
+ */
+
 // 将 React.Element 渲染为真实 dom
 function renderDom(element) {
-  console.log("````````", element);
   let dom = null; // 要返回的 dom
 
   if (!element && element !== 0) {
@@ -47,29 +54,24 @@ function renderDom(element) {
 
   const {
     type,
-    props: { children },
+    props: { children, ...attributes },
   } = element;
-  /**
-   * type: 如'div','span',也可以是React组件名、React fragment等
-   * config：写在标签上的属性的集合，不为 null 时，说明标签上有属性，将除了key、ref、__source 和 __self之外的属性添加到 props 中
-   * children： 从第三个参数开始后的参数为当前创建的React元素的子节点
-   */
 
   if (typeof type === "string") {
-    // 常规 dom 节点的渲染
+    // 常规 dom 节点的渲染 如<div> <span> <a>
     dom = document.createElement(type);
   } else if (typeof type === "function") {
     // React组件的渲染
     if (type.prototype.isReactComponent) {
       // 如果是类组件
       const { props, type: Comp } = element;
-      const component = new Comp(props);
-      const jsx = component.render();
+      const component = new Comp(props); //使用new 创建类
+      const jsx = component.render(); //执行它的render函数
       dom = renderDom(jsx);
     } else {
       // 如果是函数组件
       const { props, type: Fn } = element;
-      const jsx = Fn(props);
+      const jsx = Fn(props); //直接执行函数组件，return里面就是jsx
       dom = renderDom(jsx);
     }
   } else {
@@ -84,10 +86,45 @@ function renderDom(element) {
       dom.appendChild(childrenDom);
     }
   }
+
+  //生成好dom了，给它添属性
+  updateAttributes(dom, attributes);
+
   return dom;
+}
+
+/**
+ * 接收 dom 和 attributes 两个参数，给dom添加如类名、style、事件等属性
+ * @param {HTMLElement} dom
+ * @param {Object} attributes
+ */
+function updateAttributes(dom, attributes) {
+  Object.keys(attributes).forEach((key) => {
+    if (key.startsWith("on")) {
+      //如果要添加事件 'onClick' 'onChange'
+      const eventName = key.slice(2).toLocaleLowerCase();
+      dom.addEventListener(eventName, attributes[key]);
+    } else if (key === "className") {
+      //如果要添加类名 'deep1-box'
+      const classes = attributes[key].split(" ");
+      classes.forEach((classKey) => {
+        dom.classList.add(classKey);
+      });
+    } else if (key === "style") {
+      //如果要添加行内样式
+      const style = attributes[key];
+      Object.keys(style).forEach((styleName) => {
+        dom.style[styleName] = style[styleName];
+      });
+    } else {
+      //如果要添加其他属性 如'href'
+      dom[key] = attributes[key];
+    }
+  });
 }
 
 const ReactDOM = {
   render,
 };
+
 export default ReactDOM;
