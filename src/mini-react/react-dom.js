@@ -98,10 +98,40 @@ function renderDom(element) {
 
 /**
  * 接收 dom 和 attributes 两个参数，给dom添加如类名、style、事件等属性
+ * 当 fiber 被打上 Update 的 flag 标签时，表示更新 dom，
+ * 我们要对旧的 dom 中的属性及监听事件进行移除。添加新属性的事情不在这里做
  * @param {HTMLElement} dom
  * @param {Object} attributes
+ * @param {*} oldAttributes
  */
-function updateAttributes(dom, attributes) {
+export function updateAttributes(dom, attributes, oldAttributes) {
+  if (oldAttributes) {
+    //有旧属性，移除旧属性
+    Object.keys(oldAttributes).forEach((key) => {
+      if (key.startsWith("on")) {
+        //移除旧事件
+        const eventName = key.slice(2).toLocaleLowerCase();
+        dom.removeEventListener(eventName, oldAttributes[key]);
+      } else if (key === "className") {
+        //移除旧类名
+        const classes = oldAttributes[key].split(" ");
+        classes.forEach((classKey) => {
+          dom.classList.remove(classKey);
+        });
+      } else if (key === "style") {
+        //修改旧行内样式
+        const style = oldAttributes[key];
+        Object.keys(style).forEach((styleName) => {
+          dom.style[styleName] = "initial";
+        });
+      } else {
+        //如果要移除其他属性 如'href'
+        dom[key] = "";
+      }
+    });
+  }
+
+  //添加新属性的逻辑
   Object.keys(attributes).forEach((key) => {
     if (key.startsWith("on")) {
       //如果要添加事件 'onClick' 'onChange'
