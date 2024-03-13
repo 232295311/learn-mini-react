@@ -60,11 +60,7 @@ function performUnitOfWork(workInProgress) {
   if (typeof type === "function") {
     // 当前 fiber 对应 React 组件时（类组件或者函数组件），对其 return 迭代
     if (type.prototype.isReactComponent) {
-      // 类组件，通过生成的类实例的 render 方法返回 jsx
-      const { props, type: Comp } = workInProgress.element;
-      const component = new Comp(props);
-      const jsx = component.render();
-      children = [jsx]; //统一放在children数组里，后面共用同一套fiber创建逻辑
+      updateClassComponent(workInProgress);
     } else {
       // 函数组件，直接调用函数返回 jsx
       const { props, type: Fn } = workInProgress.element;
@@ -135,6 +131,39 @@ export function deleteFiber(fiber) {
 // 获取 deletions 数组
 export function getDeletions() {
   return deletions;
+}
+
+function updateClassComponent(fiber) {
+  let jsx;
+  if (fiber.alternate) {
+    // 有旧组件，复用
+    const component = fiber.alternate.component;
+    fiber.component = component;
+    component._UpdateProps(fiber.element.props);
+    jsx = component.render();
+  } else {
+    // 没有则创建新组件
+    const { props, type: Comp } = fiber.element;
+    const component = new Comp(props);
+    fiber.component = component;
+    jsx = component.render();
+  }
+
+  reconcileChildren(fiber, [jsx]);
+}
+
+/**
+ * 就是将当前的 currentRoot 作为 workInProgressRoot，
+ * 并将 nextUnitOfWork 指向它，去触发 render：
+ * setState时会触发commitWork
+ */
+export function commitRender() {
+  workInProgressRoot = {
+    stateNode: currentRoot.stateNode, // 记录对应的真实 dom 节点
+    element: currentRoot.element,
+    alternate: currentRoot,
+  };
+  nextUnitOfWork = workInProgressRoot;
 }
 
 // 处理循环和中断逻辑  函数会接收到一个名为 IdleDeadline 的参数，这个参数可以获取当前空闲时间以及回调是否在超时时间前已经执行的状态。
