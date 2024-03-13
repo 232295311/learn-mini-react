@@ -1,4 +1,4 @@
-import { commitRender } from "./fiber";
+import { commitRender, getCurrentFunctionFiber, getHookIndex } from "./fiber";
 
 /**
  * Component 类接受 props 参数，并挂载到 this 对象上
@@ -39,3 +39,34 @@ Component.prototype.setState = function (param) {
 Component.prototype._UpdateProps = function (props) {
   this.props = props;
 };
+
+export function useState(initial) {
+  const currentFunctionFiber = getCurrentFunctionFiber();
+  const hookIndex = getHookIndex();
+  // 取当前执行的函数组件之前的 hook
+  const oldHook = currentFunctionFiber?.alternate?.hooks?.[hookIndex];
+
+  // oldHook存在，取之前的值，否则取现在的值
+  const hook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [], // 一次函数执行过程中可能调用多次 setState，将其放进队列一并执行
+  };
+
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach((action) => {
+    hook.state = action(hook.state);
+  });
+
+  const setState = (action) => {
+    if (typeof action === "function") {
+      hook.queue.push(action);
+    } else {
+      hook.queue.push(() => {
+        return action;
+      });
+    }
+    commitRender();
+  };
+  currentFunctionFiber.hooks.push(hook);
+  return [hook.state, setState];
+}

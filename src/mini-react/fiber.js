@@ -9,6 +9,8 @@ let workInProgressRoot = null; // 当前要渲染的 fiber 树,
 let currentRoot = null; // 上一次渲染的 fiber 树
 let deletions = []; // 要执行删除 dom 的 fiber
 let workUnitCount = 0;
+let currentFunctionFiber = null; // 当前正在执行的函数组件对应 fiber
+let hookIndex = 0; //  当前正在执行的函数组件 hook 的下标
 // 首先，我们需要根据 ReactDOM.render 接收的 element 和 container 参数，创建一个 rootFiber，指向 root fiber。
 /**
  * 创建 rootFiber 作为首个 nextUnitOfWork (注意不是创建FiberRoot FiberRoot才是唯一的那个)
@@ -58,14 +60,11 @@ function performUnitOfWork(workInProgress) {
   let type = workInProgress.element?.type;
 
   if (typeof type === "function") {
-    // 当前 fiber 对应 React 组件时（类组件或者函数组件），对其 return 迭代
+    // 当前 fiber 对应 React 组件时（类组件或者函数组件）
     if (type.prototype.isReactComponent) {
       updateClassComponent(workInProgress);
     } else {
-      // 函数组件，直接调用函数返回 jsx
-      const { props, type: Fn } = workInProgress.element;
-      const jsx = Fn(props);
-      children = [jsx];
+      updateFunctionComponent(workInProgress);
     }
   }
 
@@ -133,6 +132,16 @@ export function getDeletions() {
   return deletions;
 }
 
+// 获取当前的执行的函数组件对应的 fiber
+export function getCurrentFunctionFiber() {
+  return currentFunctionFiber;
+}
+
+// 获取当前 hook 下标
+export function getHookIndex() {
+  return hookIndex++;
+}
+
 function updateClassComponent(fiber) {
   let jsx;
   if (fiber.alternate) {
@@ -149,6 +158,21 @@ function updateClassComponent(fiber) {
     jsx = component.render();
   }
 
+  reconcileChildren(fiber, [jsx]);
+}
+
+/**
+ * 会将 currentFunctionFiber 指向 workInProgress
+ * 并将其上面挂载的  数组置空。将全局的 hookIndex 重置为0
+ * 然后重新调用函数时组件实现组件更新
+ * @param {*} fiber
+ */
+function updateFunctionComponent(fiber) {
+  currentFunctionFiber = fiber;
+  currentFunctionFiber.hooks = [];
+  hookIndex = 0;
+  const { props, type: Fn } = fiber.element;
+  const jsx = Fn(props);
   reconcileChildren(fiber, [jsx]);
 }
 

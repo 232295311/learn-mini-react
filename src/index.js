@@ -1,5 +1,5 @@
 // import { Component } from "react"; //React17开始 由react/jsx-runtime处理jsx代码 不用引入React再使用babel处理
-import { Component } from "./mini-react/react";
+import { Component, useState } from "./mini-react/react";
 import { ReactDOM } from "./mini-react/react-dom";
 import "./index.css";
 
@@ -30,10 +30,16 @@ class ClassComponent extends Component {
 }
 
 function FunctionComponent(props) {
+  const [count, setCount] = useState(0);
+  const addCount = () => {
+    setCount(count + 1);
+  };
   return (
     <div className="function-component">
       <div>this is a function Component</div>
       <div>prop value is: {props.value}</div>
+      <div>count is: {count}</div>
+      <input type="button" value="add count" onClick={addCount} />
     </div>
   );
 }
