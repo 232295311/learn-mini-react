@@ -1,6 +1,6 @@
 // 存储和 fiber 相关的实现代码
 import { renderDom } from "./react-dom";
-
+import { commitRoot } from "./commit.js";
 // 每个 fiber 上都需要挂载 stateNode 和 element 属性，stateNode 指向根据此 fiber 创建的真实 dom 节点，用于渲染，element 指向 fiber 所对应的 React.element。
 
 let nextUnitOfWork = null; //指向下一个要处理的单元
@@ -23,22 +23,25 @@ export function createRoot(element, container) {
 
 // 执行当前工作单元并设置下一个要执行的工作单元
 function performUnitOfWork(workInProgress) {
-  console.log(workInProgress);
   if (!workInProgress.stateNode) {
     // 若当前 fiber 没有 stateNode，则根据 fiber 挂载的 element 的属性创建
     workInProgress.stateNode = renderDom(workInProgress.element);
   }
 
-  if (workInProgress.return && workInProgress.stateNode) {
-    // 如果 fiber 有父 fiber且有 dom
-    // 向上寻找能挂载 dom 的节点进行 dom 挂载
-    let parentFiber = workInProgress.return;
-    while (!parentFiber.stateNode) {
-      //迭代，如果能一直return上去就一直return上去
-      parentFiber = parentFiber.return;
-    }
-    parentFiber.stateNode.appendChild(workInProgress.stateNode);
-  }
+  /**
+   * 这里是每处理一个fiber，都会将相应dom挂载到页面上，但是会有个问题：
+   * 如果performUnitOfWork中断了怎么办，所以这里应该不挂载，而是将所有fiber处理完之后再commit阶段挂载
+   */
+  // if (workInProgress.return && workInProgress.stateNode) {
+  //   // 如果 fiber 有 父fiber 且有 真实dom
+  //   // 向上寻找能挂载 真实dom 的节点进行 dom 挂载
+  //   let parentFiber = workInProgress.return;
+  //   while (!parentFiber.stateNode) {
+  //     //迭代，如果parent没有stateNode 就一直return上去
+  //     parentFiber = parentFiber.return;
+  //   }
+  //   parentFiber.stateNode.appendChild(workInProgress.stateNode); //这里才是把stateNode挂载到真实dom上的逻辑
+  // }
 
   /**
    * 构造fiber树，每个fiber通过 child、 sibling 和 return 相连。
@@ -56,7 +59,7 @@ function performUnitOfWork(workInProgress) {
       const { props, type: Comp } = workInProgress.element;
       const component = new Comp(props);
       const jsx = component.render();
-      children = [jsx]; //统一放在children数组里，后面共用渲染逻辑
+      children = [jsx]; //统一放在children数组里，后面共用同一套fiber创建逻辑
     } else {
       // 函数组件，直接调用函数返回 jsx
       const { props, type: Fn } = workInProgress.element;
@@ -102,7 +105,6 @@ function performUnitOfWork(workInProgress) {
   } else {
     let nextFiber = workInProgress;
     while (nextFiber) {
-      console.log(nextFiber);
       if (nextFiber.sibling) {
         // 没有子 fiber 有兄弟 fiber，则下一个工作单元是兄弟 fiber
         nextUnitOfWork = nextFiber.sibling;
@@ -122,11 +124,17 @@ function performUnitOfWork(workInProgress) {
 // 处理循环和中断逻辑  函数会接收到一个名为 IdleDeadline 的参数，这个参数可以获取当前空闲时间以及回调是否在超时时间前已经执行的状态。
 function workLoop(deadline) {
   console.log("====", nextUnitOfWork);
+
   let shouldYield = false;
   while (nextUnitOfWork && !shouldYield) {
     // 循环执行工作单元任务 如果剩余空闲时间小于1ms,就不会触发工作单元任务
     performUnitOfWork(nextUnitOfWork);
     shouldYield = deadline.timeRemaining() < 1;
+  }
+  if (!nextUnitOfWork && rootFiber) {
+    // 表示进入 commit 阶段
+    commitRoot(rootFiber);
+    rootFiber = null;
   }
   // requestIdleCallback(workLoop); //进行下一轮的注册 不然只会运行一轮workLoop
 }

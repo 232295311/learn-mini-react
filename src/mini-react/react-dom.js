@@ -77,9 +77,9 @@ function renderDom(element) {
     //       const jsx = Fn(props); //直接执行函数组件，return里面就是jsx
     //       dom = renderDom(jsx);
     //     }
-  } else {
-    // 其他情况暂不考虑
-    return null;
+  } else if (typeof type === "function") {
+    // 如果是React 类组件或者函数组件，渲染一个fragment，方便去挂载下面的子节点
+    dom = document.createDocumentFragment();
   }
 
   //   if (children) {
