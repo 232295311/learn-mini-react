@@ -1,11 +1,14 @@
+import { createRoot } from "./fiber";
+
 /**
  * 接收 element 和 container 两个参数，并将 element 渲染为真实 dom 挂载到 container 上。
  * @param {React.JSX.Element} element
  * @param {HTMLElement} container
  */
 function render(element, container) {
-  const dom = renderDom(element);
-  container.appendChild(dom);
+  //   const dom = renderDom(element);
+  //   container.appendChild(dom);
+  createRoot(element, container);
 }
 
 /**
@@ -37,18 +40,18 @@ function renderDom(element) {
     return dom;
   }
 
-  if (Array.isArray(element)) {
-    //如果 element 是一个数组 把他们都放在一个<fragment>下
-    dom = document.createDocumentFragment();
-    for (let item of element) {
-      const child = renderDom(item); //递归调用
-      if (child) {
-        //dom.appendChild(null)会报错。
-        dom.appendChild(child);
-      }
-    }
-    return dom;
-  }
+  //   if (Array.isArray(element)) {
+  //     //如果 element 是一个数组 把他们都放在一个<fragment>下
+  //     dom = document.createDocumentFragment();
+  //     for (let item of element) {
+  //       const child = renderDom(item); //递归调用
+  //       if (child) {
+  //         //dom.appendChild(null)会报错。
+  //         dom.appendChild(child);
+  //       }
+  //     }
+  //     return dom;
+  //   }
 
   /**当 typeof element 为 function 类型时，表示类组件或者函数组件，需要针对处理 */
 
@@ -60,32 +63,32 @@ function renderDom(element) {
   if (typeof type === "string") {
     // 常规 dom 节点的渲染 如<div> <span> <a>
     dom = document.createElement(type);
-  } else if (typeof type === "function") {
-    // React组件的渲染
-    if (type.prototype.isReactComponent) {
-      // 如果是类组件
-      const { props, type: Comp } = element;
-      const component = new Comp(props); //使用new 创建类
-      const jsx = component.render(); //执行它的render函数
-      dom = renderDom(jsx);
-    } else {
-      // 如果是函数组件
-      const { props, type: Fn } = element;
-      const jsx = Fn(props); //直接执行函数组件，return里面就是jsx
-      dom = renderDom(jsx);
-    }
+    //   } else if (typeof type === "function") {
+    //     // React组件的渲染
+    //     if (type.prototype.isReactComponent) {
+    //       // 如果是类组件
+    //       const { props, type: Comp } = element;
+    //       const component = new Comp(props); //使用new 创建类
+    //       const jsx = component.render(); //执行它的render函数
+    //       dom = renderDom(jsx);
+    //     } else {
+    //       // 如果是函数组件
+    //       const { props, type: Fn } = element;
+    //       const jsx = Fn(props); //直接执行函数组件，return里面就是jsx
+    //       dom = renderDom(jsx);
+    //     }
   } else {
     // 其他情况暂不考虑
     return null;
   }
 
-  if (children) {
-    // children 存在，对子节点递归渲染
-    const childrenDom = renderDom(children);
-    if (childrenDom) {
-      dom.appendChild(childrenDom);
-    }
-  }
+  //   if (children) {
+  //     // children 存在，对子节点递归渲染
+  //     const childrenDom = renderDom(children);
+  //     if (childrenDom) {
+  //       dom.appendChild(childrenDom);
+  //     }
+  //   }
 
   //生成好dom了，给它添属性
   updateAttributes(dom, attributes);
@@ -127,4 +130,4 @@ const ReactDOM = {
   render,
 };
 
-export default ReactDOM;
+export { ReactDOM, renderDom };

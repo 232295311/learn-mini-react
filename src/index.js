@@ -1,5 +1,5 @@
 import { Component } from "react"; //React17开始 由react/jsx-runtime处理jsx代码 不用引入React再使用babel处理
-import ReactDOM from "./mini-react/react-dom";
+import { ReactDOM } from "./mini-react/react-dom";
 import "./index.css";
 
 class ClassComponent extends Component {
